@@ -94,7 +94,7 @@ ALTER TABLE NashvilleHousing
 ADD OwnerSplitState Nvarchar(255);
 
 UPDATE NashvilleHousing
-SET OwnerSplitState = PARSENAME(REPLACE(OwnerAddress,',','.'),3)
+SET OwnerSplitState = PARSENAME(REPLACE(OwnerAddress,',','.'),1)
 
 --------------------------------------------------------------------------------------------------------------
 --Change Y and N to Yes and No in "Sold as Vacant' Field
