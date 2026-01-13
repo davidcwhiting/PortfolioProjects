@@ -1,35 +1,11 @@
-import pandas as pd
-import googlemaps
-import folium
-import time
-from pathlib import Path
-import os
-import re
-from branca.element import Template, MacroElement
-import numpy as np
-from shapely.geometry import Point, Polygon
-import json
-
-# Set your Google API key here
-API_KEY = ""
-
-# Initialize Google Maps client
-gmaps = googlemaps.Client(key=API_KEY)
-
-downloads_path = str(Path.home() / "Downloads")
-os.chdir(downloads_path)
-
-# --- Config ---
-CSV_PATH = "naples_ward_list_07_06_2025.csv"
-
 # --- Updated Flood Zone Data for Collier County ---
 # Based on the actual FEMA flood zone map provided
 flood_zones = {
     'A': {
         'name': 'Zone A',
-        'description': 'High-risk flood zone covering southern coastal areas and Ten Thousand Islands',
+        'description': 'Severe flood zone covering southern coastal areas and Ten Thousand Islands',
         'color': '#FD0707',
-        'risk_level': 'High',
+        'risk_level': 'Severe',
         'polygons': [[
                [
             -81.85032534913698,
@@ -44,12 +20,8 @@ flood_zones = {
             26.33188984890458
           ],
           [
-            -81.81923159845039,
-            26.330658496767555
-          ],
-          [
-            -81.81886477688138,
-            26.316683087827386
+              -81.80585,
+              26.33063
           ],
           [
             -81.8050149669697,
@@ -163,9 +135,9 @@ flood_zones = {
     },
     'B': {
         'name': 'Zone B',
-        'description': 'Moderate to high-risk zone in northern Naples area',
+        'description': 'Elevated risk zone in northern Naples area',
         'color': '#F55E06',
-        'risk_level': 'Moderate to high',
+        'risk_level': 'Elevated',
         'polygons': [[
    [
             -81.80153714520621,
@@ -211,7 +183,7 @@ flood_zones = {
     },
     'C': {
         'name': 'Zone C',
-        'description': 'Moderate to Minimal-risk zone in western Naples',
+        'description': 'Moderate risk zone in western Naples',
         'color': '#F9C74F',
         'risk_level': 'Moderate',
         'polygons': [[
@@ -399,9 +371,9 @@ flood_zones = {
     },
     'D': {
         'name': 'Zone D',
-        'description': 'Minimal-risk zone west of Zone A/C, bounded by I-75 on east and north',
+        'description': 'Low risk zone west of Zone A/C, bounded by I-75 on east and north',
         'color': '#90BE6D',
-        'risk_level': 'Minimal',
+        'risk_level': 'Low',
         'polygons': [[
             [
             -81.76231515751302,
@@ -703,9 +675,9 @@ flood_zones = {
     },
     'E': {
         'name': 'Zone E',
-        'description': 'Very minimal-risk zone east and north of I-75',
+        'description': 'Very Low-risk zone east and north of I-75',
         'color': '#43AA8B',
-        'risk_level': 'Very Minimal',
+        'risk_level': 'Very Low',
         'polygons': [[
   [
             -81.75034621471349,
@@ -798,250 +770,3 @@ flood_zones = {
 ]]
     }
 }
-
-
-
-
-def point_in_flood_zone(lat, lon):
-    """Determine which flood zone a point falls into."""
-    point = Point(lon, lat)  # Note: Point takes (lon, lat)
-    
-    for zone_id, zone_data in flood_zones.items():
-        for polygon_coords in zone_data['polygons']:
-            polygon = Polygon(polygon_coords)
-            if polygon.contains(point):
-                return zone_id, zone_data['name'], zone_data['risk_level']
-    
-    return None, 'Outside Flood Zones', 'Unknown'
-
-def get_flood_zone_icon_color(zone_id):
-    """Get marker color based on flood zone risk - matches the provided map."""
-    if zone_id == 'A':
-        return 'red'
-    elif zone_id == 'B':
-        return 'orange'
-    elif zone_id == 'C':
-        return 'yellow'
-    elif zone_id == 'D':
-        return 'lightgreen'
-    elif zone_id == 'E':
-        return 'green'
-    else:
-        return 'gray'
-
-
-# --- Read CSV ---
-df = pd.read_csv(CSV_PATH)
-print(df)
-df_clean = df[df['Street Address 1'].notna() & (df['Street Address 1'].str.strip() != '')]
-df_clean = df_clean[df_clean['Street Address 1'].astype(str).str.strip() != '']
-df_clean['City'] = df_clean['City'].replace('', pd.NA) 
-df_clean['City'] = df_clean['City'].fillna('Naples')
-def build_clean_address(row):
-    street1 = re.sub(r'(Apt|Unit|#)\s*\w+', '', str(row.get('Street Address 1', '')).strip(), flags=re.IGNORECASE)
-    street2 = re.sub(r'(Apt|Unit|#)\s*\w+', '', str(row.get('Address 2', '')).strip(), flags=re.IGNORECASE)
-    city = str(row.get('City', '')).strip()
-    state = str(row.get('State', '')).strip()
-    postal_code = str(row.get('zip', '')).strip()
-    address_parts = [street1, street2, city, state, postal_code]
-    return ", ".join([part for part in address_parts if part])
-
-def color_coding(row):
-    if ((row['has_ministering_assignment'] == 'TRUE') or (row['has_ministering_assignment']=='1')) and row['has_ministering_brother'] == 'TRUE':
-        return 'green'
-    elif ((row['has_ministering_assignment'] == 'TRUE') or (row['has_ministering_assignment']=='1')) and (row['has_ministering_brother'] != 'TRUE' and row['has_ministering_brother'] != '1'):
-        return 'blue'
-    elif ((row['has_ministering_assignment'] != 'TRUE') and (row['has_ministering_assignment']!='1')) and ((row['has_ministering_brother'] == 'TRUE') or (row['has_ministering_brother'] =='1')):
-        return 'purple'
-    elif ((row['has_ministering_assignment'] != 'TRUE') and (row['has_ministering_assignment']!='1')) and (row['has_ministering_brother'] != 'TRUE' and row['has_ministering_brother'] != '1'):
-        return 'red'
-    else: 
-        return 'lightgray'
-
-df_clean['color_coding_ministering'] = df.apply(color_coding, axis=1)
-
-rows = df_clean[['Name','HOH', 'Age', 'Gender', 'Street Address 1', 'Address 2', 'City', 'State', 'zip', 'has_ministering_assignment', 'has_ministering_brother', 'has_ministering_sister', 'color_coding_ministering']].dropna(subset=['Name', 'Street Address 1'])
-
-# Filter for heads of household only
-rows = rows[(rows['HOH'] =='TRUE') | (rows['HOH'] == '1') ]
-print(f"Row count (heads of household only): {rows.shape[0]}")
-
-def google_geocode(address):
-    try:
-        geocode_result = gmaps.geocode(address)
-        if geocode_result:
-            result = geocode_result[0]
-            location = result['geometry']['location']
-            
-            # Check if result is in Florida
-            states = [comp['short_name'].lower() for comp in result['address_components'] if 'administrative_area_level_1' in comp['types']]
-            if 'fl' in states:
-                return location['lat'], location['lng']
-            else:
-                print(f"Discarded (not FL): {address}")
-        else:
-            print(f"No results for: {address}")
-    except Exception as e:
-        print(f"Error geocoding {address}: {e}")
-    return None
-
-# --- Geocoding ---
-locations = []
-
-for index, row in rows.iterrows():
-    address = build_clean_address(row)
-    location = google_geocode(address)
-    if location:
-        lat, lon = location
-        print(f"{address} -> ({lat}, {lon})")
-
-        # Determine flood zone
-        flood_zone_id, flood_zone_name, flood_risk = point_in_flood_zone(lat, lon)
-        
-        record = row.to_dict()
-        record["address"] = address
-        record["lat"] = lat
-        record["lon"] = lon
-        record["flood_zone_id"] = flood_zone_id
-        record["flood_zone_name"] = flood_zone_name
-        record["flood_risk"] = flood_risk
-        locations.append(record)
-        
-        print(f"  -> Flood Zone: {flood_zone_name} ({flood_risk} risk)")
-    else:
-        print(f"Could not geocode: {address}")
-    time.sleep(1)  # Respect Google API rate limits
-
-if locations:
-    # Create map centered on Naples area
-    m = folium.Map(location=[26.1420, -81.7948], zoom_start=11)
-    
-    # Add flood zone polygons as overlays
-    flood_zone_group = folium.FeatureGroup(name="Collier County Flood Zones")
-    
-    for zone_id, zone_data in flood_zones.items():
-        for polygon_coords in zone_data['polygons']:
-            folium.Polygon(
-                locations=[[lat, lon] for lon, lat in polygon_coords],
-                color=zone_data['color'],
-                weight=2,
-                opacity=0.8,
-                fill=True,
-                fillColor=zone_data['color'],
-                fillOpacity=0.3,
-                popup=folium.Popup(
-                    f"<b>{zone_data['name']}</b><br>"
-                    f"Risk Level: {zone_data['risk_level']}<br>"
-                    f"{zone_data['description']}", 
-                    max_width=350
-                )
-            ).add_to(flood_zone_group)
-    
-    flood_zone_group.add_to(m)
-    
-    # Add household markers
-    household_group = folium.FeatureGroup(name="Households")
-    
-    for loc in locations:
-        # Use flood zone color for border, ministering color for icon
-        flood_zone_color = get_flood_zone_icon_color(loc["flood_zone_id"])
-        ministering_color = loc["color_coding_ministering"]
-
-        # Create popup HTML with flood zone info
-        popup_html = ""
-        for key, value in loc.items():
-            if key in ["lat", "lon"]:  # Skip coordinates
-                continue
-            popup_html += f"<b>{key}:</b> {value}<br>"
-
-        # Create a custom icon that shows both ministering status and flood risk
-        folium.CircleMarker(
-            [loc["lat"], loc["lon"]],
-            radius=8,
-            popup=folium.Popup(popup_html, max_width=400),
-            color=flood_zone_color,  # Border color indicates flood risk
-            weight=3,
-            fill=True,
-            fillColor=ministering_color,  # Fill color indicates ministering status
-            fillOpacity=0.7,
-            tooltip=f"{loc['Name']} - {loc['flood_zone_name']}"
-        ).add_to(household_group)
-    
-    household_group.add_to(m)
-    
-    # Add layer control
-    folium.LayerControl().add_to(m)
-    
-    # --- Updated Legend ---
-    legend_html = """
-    {% macro html(this, kwargs) %}
-
-    <div style="
-        position: fixed; 
-        bottom: 50px;
-        left: 50px;
-        width: 300px;
-        z-index:9999;
-        background-color: white;
-        border:2px solid grey;
-        padding: 15px;
-        font-size:12px;
-        box-shadow: 2px 2px 6px rgba(0,0,0,0.3);
-    ">
-    <b>Household Ministering Status (Fill Color):</b><br>
-    <i style="background:green; width:10px; height:10px; float:left; margin-right:8px; margin-top:2px;"></i>
-        Ministering Assigned & Has Ministering Brother<br>
-    <i style="background:blue; width:10px; height:10px; float:left; margin-right:8px; margin-top:2px;"></i>
-        Ministering Assigned & Has No Ministering Brother<br>
-    <i style="background:purple; width:10px; height:10px; float:left; margin-right:8px; margin-top:2px;"></i>
-        No Ministering Assignment & Has Ministering Brother<br>
-    <i style="background:red; width:10px; height:10px; float:left; margin-right:8px; margin-top:2px;"></i>
-        No Ministering Assignment & Has No Ministering Brother<br>
-    <i style="background:grey; width:10px; height:10px; float:left; margin-right:8px; margin-top:2px;"></i>
-        Unknown / Other<br><br>
-    
-    <b>Collier County Flood Risk (Border Color):</b><br>
-    <i style="background:red; width:10px; height:10px; float:left; margin-right:8px; margin-top:2px;"></i>
-    High Risk (Zone A)<br>
-    <i style="background:orange; width:10px; height:10px; float:left; margin-right:8px; margin-top:2px;"></i>
-    Moderate Risk (Zone B)<br>
-    <i style="background:yellow; width:10px; height:10px; float:left; margin-right:8px; margin-top:2px;"></i>
-    Moderate to Minimal Risk (Zone C)<br>
-    <i style="background:lightgreen; width:10px; height:10px; float:left; margin-right:8px; margin-top:2px;"></i>
-    Minimal Risk (Zone D)<br>
-    <i style="background:green; width:10px; height:10px; float:left; margin-right:8px; margin-top:2px;"></i>
-    Very Minimal Risk (Zone E)<br>
-    <i style="background:grey; width:10px; height:10px; float:left; margin-right:8px; margin-top:2px;"></i>
-    Outside Mapped Zones
-    </div>
-
-    {% endmacro %}
-    """
-
-    legend = MacroElement()
-    legend._template = Template(legend_html)
-    m.get_root().add_child(legend)
-    
-    # Save map
-    m.save("mapped_addresses_with_collier_flood_zones.html")
-    print("✅ Map with Collier County flood zones saved to 'mapped_addresses_with_collier_flood_zones.html'")
-    
-    # Create summary report
-    print("\n🌊 COLLIER COUNTY FLOOD ZONE SUMMARY:")
-    flood_summary = {}
-    for loc in locations:
-        zone = loc['flood_zone_name']
-        if zone not in flood_summary:
-            flood_summary[zone] = 0
-        flood_summary[zone] += 1
-    
-    for zone, count in sorted(flood_summary.items()):
-        print(f"  {zone}: {count} households")
-    
-    # Save locations data with flood zones
-    locations_df = pd.DataFrame(locations)
-    locations_df.to_csv("households_with_collier_flood_zones.csv", index=False)
-    print("✅ Household data with Collier County flood zones saved to 'households_with_collier_flood_zones.csv'")
-    
-else:
-    print("❌ No addresses were geocoded successfully.")
