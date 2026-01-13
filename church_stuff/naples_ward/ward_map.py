@@ -11,7 +11,7 @@ from shapely.geometry import Point, Polygon
 import json
 
 # Set your Google API key here
-API_KEY = "AIzaSyB6tZR9vX29dKnIZlh9l2x39FBcyl8xF44"
+API_KEY = ""
 
 # Initialize Google Maps client
 gmaps = googlemaps.Client(key=API_KEY)
