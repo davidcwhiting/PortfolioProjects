@@ -17,19 +17,8 @@ path = str(Path.home() / "Documents/church_stuff/dash_app")
 os.chdir(path)
 
 # --- Config ---
-# CSV_PATH = "Naples_Ward_Household:w
-# _List_062325.csv"
-# CSV_PATH = "Naples_Ward_Household_List_08_20_2025.csv"
-# CSV_PATH = "Naples_Ward_Household_List_08_26_2025.csv"
-# CSV_PATH = "Naples_Ward_Household_List_09_16_2025.csv"
-# CSV_PATH = "Naples_Ward_Household_List_09_16_2025.csv"
-# CSV_PATH = "Naples_Ward_Household_List_10_02_2025.csv"
-# CSV_PATH = "Naples_Ward_Household_List_10_08_2025.csv"
-# CSV_PATH = "Naples_Ward_Household_List_10_20_2025.csv"
 CSV_PATH = "naples_ward/Naples_Ward_Household_List_01_04_2026.csv"
 
-
-# CSV_PATH = "Naples_Ward_Household_List_12_09_2025.csv"
 # --- Read CSV ---
 df = pd.read_csv(CSV_PATH, sep="^", header=0)
 
